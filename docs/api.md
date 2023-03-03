@@ -187,6 +187,45 @@ By default, user-defined functions have a strict number of arguments (determined
 
 If `options.varargs` is `true`, the registered function can accept any number of arguments.
 
+```
+const db = new Database('./test.sqlite');
+db.prepare('CREATE TABLE IF NOT EXISTS t (a)').run();
+db.prepare("INSERT INTO t VALUES ('something more')").run();
+db.prepare("INSERT INTO t VALUES ('one, two and three')").run();
+db.prepare("INSERT INTO t VALUES ('this and that and what else')").run();
+
+const params = { q1: 'two', q2: '%two%' };
+let res = db.prepare("SELECT a FROM t WHERE a LIKE @q2").all(params);
+console.log(res);
+
+// [
+//     { a: 'one,two,three' },
+//     { a: 'one,two,three' },
+//     { a: 'one, two and three' },
+//     { a: 'one, two and three' }
+// ]
+
+db.function('snippet', {varargs: true}, (str, substr, cssClass = 'hilite') => str.replace(substr, `<b class="${cssClass}">${substr}</b>`));
+
+res = db.prepare("SELECT snippet(a, @q1) AS snip FROM t WHERE a LIKE @q2").all(params);
+console.log(res);
+// [
+//     { snip: 'one,<b class="hilite">two</b>,three' },
+//     { snip: 'one,<b class="hilite">two</b>,three' },
+//     { snip: 'one, <b class="hilite">two</b> and three' },
+//     { snip: 'one, <b class="hilite">two</b> and three' }
+//   ]
+
+res = db.prepare("SELECT snippet(a, @q1, 'foo') AS snip FROM t WHERE a LIKE @q2").all(params);
+console.log(res);
+// [
+//     { snip: 'one,<b class="foo">two</b>,three' },
+//     { snip: 'one,<b class="foo">two</b>,three' },
+//     { snip: 'one, <b class="foo">two</b> and three' },
+//     { snip: 'one, <b class="foo">two</b> and three' }
+//   ]
+```
+
 If `options.directOnly` is `true`, the registered function can only be invoked from top-level SQL, and cannot be used in [VIEWs](https://sqlite.org/lang_createview.html), [TRIGGERs](https://sqlite.org/lang_createtrigger.html), or schema structures such as [CHECK constraints](https://www.sqlite.org/lang_createtable.html#ckconst), [DEFAULT clauses](https://www.sqlite.org/lang_createtable.html#dfltval), etc.
 
 If your function is [deterministic](https://en.wikipedia.org/wiki/Deterministic_algorithm), you can set `options.deterministic` to `true`, which may improve performance under some circumstances.
